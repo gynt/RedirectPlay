@@ -1,0 +1,6 @@
+[submodule "Private/SteamWorksSDK"]
+	path = Private/SteamWorksSDK
+	url = https://gynt@github.com/gynt/SteamWorksSDK
+[submodule "Private/DirectX8SDK"]
+	path = Private/DirectX8SDK
+	url = https://gynt@github.com/gynt/DirectX8SDK
