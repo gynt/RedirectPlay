@@ -48,7 +48,7 @@ jobs:
     - name: Install DirectX 8 SDK
       shell: pwsh
       run: |
-        New-Item -Path .\External\DirectX\
+        New-Item -Path .\External\DirectX\ -Type "directory"
         Copy-Item -Path .\Private\DirectX8SDK\include\* -Recurse -Destination .\External\DirectX\
         
     - name: Build
