@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <EnableCentralPackageVersions>true</EnableCentralPackageVersions>
+    <TargetFramework>native</TargetFramework>
+    <RestoreAdditionalProjectSources>
+      <!-- for lua dependency -->
+      https://api.nuget.org/v3/index.json;       
+    
+    </RestoreAdditionalProjectSources>
+    <_NuGetTargetFallbackMoniker>$(_NuGetTargetFallbackMoniker);native,Version=v0.0</_NuGetTargetFallbackMoniker>
+  </PropertyGroup>
+
+  <ItemGroup>
+
+    <PackageReference Include="DirectX_8" Version="8.0.0" />
+
+  </ItemGroup>
+</Project>
