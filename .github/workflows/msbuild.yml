@@ -29,6 +29,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
@@ -37,19 +40,15 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: nuget restore ${{env.SOLUTION_FILE_PATH}}
 
-    - name: Fetch steamworks
+    - name: Install steamworks
       shell: pwsh
       run: |
-        Invoke-WebRequest "https://partner.steamgames.com/downloads/steamworks_sdk_159.zip" -OutFile steamworks_sdk.zip
-        7z x .\steamworks_sdk.zip sdk/public/steam/
-        Move-Item -Path .\sdk\public\steam\ -Destination External\Steam
+        Copy-Item -Path .\Private\SteamWorksSDK\sdk\public\steam\* -Recurse -Destination .\External\Steam\
 
-    - name: Fetch DirectX 8 SDK
+    - name: Install DirectX 8 SDK
       shell: pwsh
       run: |
-        Invoke-WebRequest "https://archive.org/download/dx8sdk/dx8sdk.exe" -OutFile dx8sdk.exe
-        7z x .\dx8sdk.exe include/  -odx8sdk
-        Move-Item -Path .\dx8sdk\include\ -Destination External\DirectX
+        Copy-Item -Path .\Private\DirectX8SDK\include\* -Recurse -Destination .\External\DirectX\
         
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
