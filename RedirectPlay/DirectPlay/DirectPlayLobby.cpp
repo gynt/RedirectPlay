@@ -100,7 +100,7 @@ HRESULT WINAPI CDirectPlayLobby::WaitForConnectionSettings(DWORD)
 IUnknown* CDirectPlayLobby::GetInterfaceFromIID(IID const& iid)
 {
 	RTN_IF_IFACE(iid, IID_IDirectPlayLobby3, IDirectPlayLobby3);
-	RTN_IF_IFACE(iid, IID_IDirectPlayLobby2, IDirectPlayLobby2);
+	RTN_IF_IFACE2(iid, IID_IDirectPlayLobby2, IDirectPlayLobby2);
 	RTN_IF_IFACE(iid, IID_IDirectPlayLobby,  IDirectPlayLobby);
 	return CComCopy<IDirectPlayLobby3>::GetInterfaceFromIID(iid);
 }

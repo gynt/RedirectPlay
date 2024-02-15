@@ -11,6 +11,7 @@
 extern DWORD gdwDPlaySPRefCount;
 
 #define RTN_IF_IFACE(arg, iid, iface) if (arg == iid) return static_cast<iface*>(this)
+#define RTN_IF_IFACE2(arg, iid, iface) if (arg == iid) return reinterpret_cast<iface*>(this)
 
 template<typename T>
 class CComObject : public T
