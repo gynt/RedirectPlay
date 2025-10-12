@@ -248,6 +248,7 @@
     <ClInclude Include="Globals.h" />
     <ClInclude Include="LibRelay\LibRelay.h" />
     <ClInclude Include="Log.h" />
+    <ClInclude Include="luaServerSettings.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ServiceProviders\IRegistration.h" />
     <ClInclude Include="ServiceProviders\Registration.h" />
@@ -306,6 +307,8 @@
       <DeploymentContent>true</DeploymentContent>
     </None>
     <None Include="..\External\Steam\steam_api.json" />
+    <None Include="Directory.Build.props" />
+    <None Include="dplayx.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

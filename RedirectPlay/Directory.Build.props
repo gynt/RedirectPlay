@@ -11,7 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-
+    <!-- lua is a dependency that should be forwarded upon those that use the nuget package -->
+	<PackageReference Include="lua" Version="5.4.6" PrivateAssets="none" ExcludeAssets="none" IncludeAssets="all" />
     <PackageReference Include="DirectX_8" Version="8.0.0" />
 
   </ItemGroup>

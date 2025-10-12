@@ -16,6 +16,7 @@
 #include "Steam/steamclientpublic.h"
 
 #include <cassert>
+#include <luaServerSettings.h>
 
 TClock::duration s_connectionTimeout = std::chrono::seconds(10);
 
@@ -152,7 +153,7 @@ void DPDescToSettings(SSteamServerSettings& settings, DPSESSIONDESC2 const& desc
 	{
 		settings.password.clear();
 	}
-	settings.lobbyType  = k_ELobbyTypeFriendsOnly;
+	settings.lobbyType  = k_ELobbyTypePublic;
 	settings.maxPlayers = description.dwMaxPlayers;
 }
 
@@ -165,12 +166,13 @@ HRESULT CSteamPlayProvider::Create(DPSESSIONDESC2& description)
 		m_pLobby.reset();
 	}
 
-	SSteamServerSettings settings;
+	SSteamServerSettings settings = luaServerSettings;
+	// TODO: is this necessary?
 	DPDescToSettings(settings, description);
-	if (!ShowServerSettings(settings))
+	/*if (!ShowServerSettings(settings))
 	{
 		return DPERR_CANCELLED;
-	}
+	}*/
 
 	m_pServer = std::make_unique<CSteamPlayServer>();
 	m_pLobby = std::make_unique<CSteamLobby>();

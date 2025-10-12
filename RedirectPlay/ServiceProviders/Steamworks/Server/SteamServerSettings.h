@@ -11,6 +11,6 @@ struct SSteamServerSettings
 
 	fstring<DPSESSIONNAMELEN> name;
 	fstring<DPPASSWORDLEN>    password;
-	ELobbyType                lobbyType = k_ELobbyTypeFriendsOnly;
-	size_t                    maxPlayers = 4;
+	ELobbyType                lobbyType = k_ELobbyTypePublic;
+	size_t                    maxPlayers = 8;
 };

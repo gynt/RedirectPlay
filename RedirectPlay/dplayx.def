@@ -12,3 +12,4 @@ EXPORTS
     DirectPlayEnumerate     = DirectPlayEnumerate_Implementation    @9          
     DllUnregisterServer     @10 PRIVATE
     gdwDPlaySPRefCount      @11
+    luaopen_RedirectPlay    @12

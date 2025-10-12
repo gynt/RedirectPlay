@@ -8,6 +8,9 @@
 
 #include "MinHook/include/MinHook.h"
 
+#include <lua.hpp>
+#include "luaServerSettings.h"
+
 HMODULE g_module = NULL;
 
 // Returns Class Factory for CLSID
@@ -189,3 +192,57 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     return TRUE;
 }
 
+SSteamServerSettings luaServerSettings;
+
+const char * optionNames[5] = {
+    "name",
+    "password",
+    "lobbyType",
+    "maxPlayers",
+    NULL,
+};
+
+int lua_setServerSetting(lua_State* L) {
+    int optionNumber = luaL_checkoption(L, 1, NULL, optionNames);
+    if (optionNumber == 0) {
+        const char * serverName = lua_tostring(L, 2);
+        luaServerSettings.name = serverName;
+    } else if (optionNumber == 1) {
+        const char* serverPassword = lua_tostring(L, 2);
+        luaServerSettings.password = serverPassword;
+    }else if (optionNumber == 2) {
+        const char* lobbyType = lua_tostring(L, 2);
+        if (lobbyType == "public") {
+            luaServerSettings.lobbyType = k_ELobbyTypePublic;
+        }
+        else {
+            return luaL_error(L, "lobby type not yet implemented: %s", lobbyType);
+        }
+    }
+    else if (optionNumber == 3) {
+        lua_Integer maxPlayers = lua_tointeger(L, 2);
+        if (maxPlayers < 2 || maxPlayers > 8) {
+            return luaL_error(L, "invalid lobby maxPlayers: %d", maxPlayers);
+        }
+        luaServerSettings.maxPlayers = maxPlayers;
+    }
+    return 0;
+}
+
+extern "C" int luaopen_RedirectPlay(lua_State* L) {
+
+    lua_newtable(L);
+
+    lua_newtable(L);
+
+    lua_newtable(L);
+
+    lua_pushcfunction(L, lua_setServerSetting);
+    lua_setfield(L, -1, "setServerSetting");
+        
+    lua_setfield(L, -1, "settings");
+
+    lua_setfield(L, -1, "server");
+
+    return 1;
+}

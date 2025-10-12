@@ -8,6 +8,7 @@
 
 #include <functional> // needed for callbacks
 #include <unordered_map>
+#include <thread>
 
 class CSteamPlayServer
 {

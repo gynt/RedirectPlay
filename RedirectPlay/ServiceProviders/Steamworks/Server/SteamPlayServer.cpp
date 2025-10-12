@@ -9,7 +9,6 @@
 #include "Steam/steamclientpublic.h"
 
 #include <cassert>
-#include <thread>
 #include <type_traits>
 
 constexpr uint32      s_desiredIP = INADDR_ANY;
