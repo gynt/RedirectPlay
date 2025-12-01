@@ -37,6 +37,7 @@ bool CSteamLobby::Create(SSteamServerSettings const& settings)
 
 bool CSteamLobby::Join(CSteamID lobbyID)
 {
+	Log::Debug("CSteamLobby::Join ID=%I64u", lobbyID.ConvertToUint64());
 	SteamAPICall_t steamAPICall = SteamMatchmaking()->JoinLobby(lobbyID);
 	if (steamAPICall == k_uAPICallInvalid)
 	{
@@ -51,6 +52,7 @@ bool CSteamLobby::Join(CSteamID lobbyID)
 
 void CSteamLobby::Leave()
 {
+	Log::Debug("CSteamLobby::Leave");
 	if (m_lobbyID.IsValid())
 	{
 		SteamMatchmaking()->LeaveLobby(m_lobbyID);
@@ -70,6 +72,7 @@ void CSteamLobby::SetGameServer(CSteamID serverID)
 
 CSteamID CSteamLobby::GetGameServer() const
 {
+	Log::Debug("CSteamLobby::GetGameServer");
 	if (m_lobbyID.IsValid())
 	{
 		CSteamID serverID;
@@ -83,6 +86,8 @@ CSteamID CSteamLobby::GetGameServer() const
 
 void CSteamLobby::UpdateLobbyDetails()
 {
+	Log::Debug("CSteamLobby::UpdateLobbyDetails");
+
 	ISteamFriends* pFriends = SteamFriends();
 	assert(pFriends != nullptr);
 
@@ -115,6 +120,7 @@ void CSteamLobby::OnLobbyCreated(LobbyCreated_t* pInfo, bool)
 {
 	if (pInfo->m_eResult != k_EResultOK || !CSteamID(pInfo->m_ulSteamIDLobby).IsValid())
 	{
+		Log::Debug("CSteamLobby::OnLobbyCreated() invalid lobby");
 		m_state = None;
 		return;
 	}
@@ -129,6 +135,7 @@ void CSteamLobby::OnLobbyCreated(LobbyCreated_t* pInfo, bool)
 
 void CSteamLobby::OnLobbyEntered(LobbyEnter_t* pInfo, bool bIOFailure)
 {
+	Log::Debug("CSteamLobby::OnLobbyEntered");
 	if (!CSteamID(pInfo->m_ulSteamIDLobby).IsValid())
 	{
 		m_state = None;
@@ -143,6 +150,7 @@ void CSteamLobby::OnLobbyEntered(LobbyEnter_t* pInfo, bool bIOFailure)
 
 void CSteamLobby::OnLobbyKicked(LobbyKicked_t* pInfo)
 {
+	Log::Debug("CSteamLobby::OnLobbyKicked");
 	if (m_lobbyID == CSteamID() ||
 		m_lobbyID != CSteamID(pInfo->m_ulSteamIDLobby))
 	{
@@ -157,6 +165,7 @@ void CSteamLobby::OnLobbyKicked(LobbyKicked_t* pInfo)
 
 void CSteamLobby::OnLobbyGameCreated(LobbyGameCreated_t*)
 {
+	Log::Debug("CSteamLobby::OnLobbyGameCreated");
 	UpdateLobbyDetails();
 }
 

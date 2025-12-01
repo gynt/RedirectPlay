@@ -35,8 +35,10 @@ CSteamPlayClient::~CSteamPlayClient()
 
 bool CSteamPlayClient::Join(CSteamID serverID, char const* szPassword)
 {
+	Log::Debug("CSteamPlayClient::Join ID=%I64u password=%s", serverID.ConvertToUint64(), szPassword);
 	if (!serverID.IsValid())
 	{
+		Log::Debug("CSteamPlayClient::Join server invalid");
 		return false;
 	}
 
@@ -45,6 +47,7 @@ bool CSteamPlayClient::Join(CSteamID serverID, char const* szPassword)
 	m_serverConnection = SteamNetworkingSockets()->ConnectP2P(identity, 0, 0, nullptr);
 	if (m_serverConnection == k_HSteamNetConnection_Invalid)
 	{
+		Log::Debug("CSteamPlayClient::Join steam connection invalid");
 		return false;
 	}
 
@@ -61,6 +64,7 @@ bool CSteamPlayClient::Join(CSteamID serverID, char const* szPassword)
 
 void CSteamPlayClient::Disconnect(EDisconnectReason reason)
 {
+	Log::Debug("CSteamPlayClient::Disconnect reason: %u", reason);
 	if (m_serverConnection != k_HSteamNetConnection_Invalid)
 	{
 		//if (m_pP2PAuthedGame)
@@ -91,6 +95,7 @@ void CSteamPlayClient::Disconnect(EDisconnectReason reason)
 
 bool CSteamPlayClient::CreatePlayer(SCreatePlayerData const& input, TCreatePlayerCallback callback)
 {
+	Log::Debug("CSteamPlayClient::CreatePlayer");
 	bool result = TMessageSender::TrySend<Messages::Client::SCreatePlayer>(
 		m_serverConnection,
 		k_nSteamNetworkingSend_Reliable,
@@ -139,6 +144,7 @@ bool CSteamPlayClient::SendData(DPID from, DPID to, void* pData, size_t len, boo
 
 bool CSteamPlayClient::DestroyPlayer(DPID dpid)
 {
+	Log::Debug("CSteamPlayClient::DestroyPlayer");
 	if (dpid == DPID_ALLPLAYERS)
 	{
 		TPlayers::iterator it = m_players.begin();
@@ -339,6 +345,7 @@ void CSteamPlayClient::OnReceiveInfo(TSteamMessageUniquePtr pSteamMessage)
 		{
 			if (!ShowPasswordRequest(m_password.data(), m_password.array_size()))
 			{
+				Log::InfoClient("CSteamPlayClient::OnReceiveInfo() client disconnects");
 				Disconnect(EDisconnectReason::ClientDisconnect); // todo? test, DPERR_INVALIDPASSWORD
 				return;
 			}
@@ -485,6 +492,8 @@ void CSteamPlayClient::OnReceivePlayerDestroyed(TSteamMessageUniquePtr pSteamMes
 			m_dataMessages.emplace_back(DPID_SYSMSG, player.first, sysMsg);
 		}
 	}
+
+	Log::DebugClient("Destroyed remote player %u '%s' '%s'", message.dpid, playerData.shortName.data(), playerData.longName.data());
 }
 
 void CSteamPlayClient::OnReceiveData(TSteamMessageUniquePtr pSteamMessage)

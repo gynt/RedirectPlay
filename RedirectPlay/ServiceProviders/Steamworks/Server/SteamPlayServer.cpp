@@ -178,6 +178,8 @@ void CSteamPlayServer::ReceiveNetworkData()
 
 void CSteamPlayServer::UpdateSteamServerDetails()
 {
+	
+	Log::DebugServer("CSteamPlayServer::UpdateSteamServerDetails()");
 	ISteamGameServer* pGameServer = SteamGameServer();
 	if (!pGameServer)
 	{
@@ -226,6 +228,7 @@ void CSteamPlayServer::OnNetConnectionStatusChanged(SteamNetConnectionStatusChan
 	if (oldState == k_ESteamNetworkingConnectionState_None &&
 		newState == k_ESteamNetworkingConnectionState_Connecting)
 	{
+		Log::DebugServer("CSteamPlayServer::OnNetConnectionStatusChanged() add client");
 		AddClient(connection, steamID);
 	}
 	else if ((oldState == k_ESteamNetworkingConnectionState_Connecting || oldState == k_ESteamNetworkingConnectionState_Connected) &&
@@ -238,6 +241,7 @@ void CSteamPlayServer::OnNetConnectionStatusChanged(SteamNetConnectionStatusChan
 
 void CSteamPlayServer::AddClient(HSteamNetConnection connection, CSteamID steamID)
 {
+	Log::DebugServer("CSteamPlayServer::AddClient()");
 	if (connection == k_HSteamNetConnection_Invalid)
 	{
 		return;
@@ -290,6 +294,7 @@ void CSteamPlayServer::AddClient(HSteamNetConnection connection, CSteamID steamI
 
 bool CSteamPlayServer::RemoveClient(HSteamNetConnection connection, EDisconnectReason reason)
 {
+	Log::DebugServer("CSteamPlayServer::RemoveClient()");
 	TClients::iterator entry = m_clients.find(connection);
 	if (entry != m_clients.end())
 	{
@@ -325,7 +330,7 @@ CSteamPlayServer::TClients::iterator CSteamPlayServer::RemoveClient(TClients::it
 	}
 
 
-	Log::InfoServer("Removed Client %u.", connection);
+	Log::InfoServer("Removed Client %u reason %l", connection, reason);
 	return it;
 }
 
@@ -387,10 +392,12 @@ void CSteamPlayServer::ProcessNetworkingMessage(TSteamMessageUniquePtr pSteamMes
 void CSteamPlayServer::OnReceiveBeginAuth(TClient& client, TSteamMessageUniquePtr pSteamMessage)
 {
 	assert(pSteamMessage != nullptr);
+	Log::DebugServer("CSteamPlayServer::OnReceiveBeginAuth()");
 	Messages::Client::SBeginAuth const& message = *static_cast<Messages::Client::SBeginAuth*>(pSteamMessage->m_pData);
 
 	if (HasPassword() && strncmp(m_settings.password, message.szPassword, ArrayCount(message.szPassword)) != 0)
 	{
+		Log::DebugServer("CSteamPlayServer::OnReceiveBeginAuth(): remove client: server reject");
 		RemoveClient(client.first, EDisconnectReason::ServerReject);
 	}
 	else if (UseAuth())
@@ -399,17 +406,20 @@ void CSteamPlayServer::OnReceiveBeginAuth(TClient& client, TSteamMessageUniquePt
 		EBeginAuthSessionResult const result = SteamGameServer()->BeginAuthSession(message.pToken, message.tokenLen, client.second.steamId);
 		if (result != k_EBeginAuthSessionResultOK)
 		{
+			Log::DebugServer("CSteamPlayServer::OnReceiveBeginAuth(): remove client: server reject");
 			RemoveClient(client.first, EDisconnectReason::ServerReject);
 		}
 	}
 	else
 	{
+		Log::DebugServer("CSteamPlayServer::OnReceiveBeginAuth(): auth completed");
 		OnAuthCompleted(client, true);
 	}
 }
 
 void CSteamPlayServer::OnValidateAuthTicketResponse(ValidateAuthTicketResponse_t* pInfo)
 {
+	Log::DebugServer("CSteamPlayServer::OnValidateAuthTicketResponse()");
 	for (TClients::iterator it = m_clients.begin(), end = m_clients.end(); it != end; ++it)
 	{
 		if (pInfo->m_SteamID == it->second.steamId)
@@ -424,9 +434,11 @@ void CSteamPlayServer::OnAuthCompleted(TClient& client, bool success)
 {
 	if (!success)
 	{
+		Log::DebugServer("CSteamPlayServer::OnAuthCompleted() failed");
 		RemoveClient(client.first, EDisconnectReason::ServerReject);
 		return;
 	}
+	Log::DebugServer("CSteamPlayServer::OnAuthCompleted() success");
 	client.second.authorized = true;
 
 	TMessageSender::Send<Messages::Server::SAuthPassed>(client.first, k_nSteamNetworkingSend_Reliable);
@@ -448,6 +460,7 @@ DPID CSteamPlayServer::FindEmptyId() const
 void CSteamPlayServer::OnReceiveCreatePlayer(TClient& client, TSteamMessageUniquePtr pSteamMessage)
 {
 	assert(pSteamMessage != nullptr);
+	Log::DebugServer("CSteamPlayServer::OnReceiveCreatePlayer()");
 	Messages::Client::SCreatePlayer& message = *static_cast<Messages::Client::SCreatePlayer*>(pSteamMessage->m_pData);
 
 	SPlayerData* pPlayerData = nullptr;
@@ -500,6 +513,7 @@ void CSteamPlayServer::OnReceiveDestroyPlayer(TClient& client, TSteamMessageUniq
 		{
 			if (it->second.connection == client.first)
 			{
+				Log::DebugServer("CSteamPlayServer::OnReceiveDestroyPlayer() Player '%u'", client.first);
 				it = DestroyPlayer(it);
 			}
 			else
@@ -513,6 +527,7 @@ void CSteamPlayServer::OnReceiveDestroyPlayer(TClient& client, TSteamMessageUniq
 		auto const it = m_players.find(message.dpid);
 		if (it != m_players.end() && client.first == it->second.connection)
 		{
+			Log::DebugServer("CSteamPlayServer::OnReceiveDestroyPlayer() Player '%u'", client.first);
 			DestroyPlayer(it);
 		}
 	}
