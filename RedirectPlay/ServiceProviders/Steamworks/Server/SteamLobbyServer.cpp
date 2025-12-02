@@ -31,6 +31,7 @@ bool CSteamLobby::Create(SSteamServerSettings const& settings)
 	m_state    = Creating;
 	m_password = settings.HasPassword();
 	m_name     = settings.name;
+	m_settings = settings;
 	Log::Debug("Creating Lobby...");
 	return true;
 }
@@ -72,14 +73,21 @@ void CSteamLobby::SetGameServer(CSteamID serverID)
 
 CSteamID CSteamLobby::GetGameServer() const
 {
-	Log::Debug("CSteamLobby::GetGameServer");
 	if (m_lobbyID.IsValid())
 	{
 		CSteamID serverID;
 		if (SteamMatchmaking()->GetLobbyGameServer(m_lobbyID, nullptr, nullptr, &serverID))
 		{
+			Log::Debug("CSteamLobby::GetGameServer() => serverID = %llu", serverID.ConvertToUint64());
 			return serverID;
 		}
+		else {
+			Log::Debug("CSteamLobby::GetGameServer() no server exists for lobby");
+
+		}
+	}
+	else {
+		Log::Debug("CSteamLobby::GetGameServer() lobby id is invalid");
 	}
 	return CSteamID();
 }

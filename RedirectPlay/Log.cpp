@@ -45,12 +45,12 @@ void Log::DoWrite(ELevel level, ESource source, char const* fmt, ...)
 			szLevel = "W ";
 			logLevel = ucp_NamedVerbosity::Verbosity_WARNING;
 			break;
-#ifndef NDEBUG
+// #ifndef NDEBUG
 		case ELevel::Debug:
 			szLevel = "D ";
 			logLevel = ucp_NamedVerbosity::Verbosity_1;
 			break;
-#endif
+// #endif
 		case ELevel::Info:
 		default:
 			szLevel = "I ";
