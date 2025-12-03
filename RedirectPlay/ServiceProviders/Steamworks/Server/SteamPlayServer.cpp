@@ -330,7 +330,7 @@ CSteamPlayServer::TClients::iterator CSteamPlayServer::RemoveClient(TClients::it
 	}
 
 
-	Log::InfoServer("Removed Client %u reason %l", connection, reason);
+	Log::InfoServer("Removed Client %u reason %u", (uint32) connection, (uint32) reason);
 	return it;
 }
 

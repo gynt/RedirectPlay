@@ -87,6 +87,7 @@ void Log::DoWrite(ELevel level, ESource source, char const* fmt, ...)
 
 	s_stream << s_szBuffer;
 
+	// ucp_log is thread safe
 	ucp_log(logLevel, s_stream.str().c_str());
 
 	s_stream.str(std::string());
