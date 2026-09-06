@@ -1,0 +1,17 @@
+name: Receive contract
+on:
+  pull_request:
+    paths:
+      - 'RedirectPlay/ServiceProviders/Steamworks/Client/SteamPlayClient.cpp'
+      - 'tests/**'
+      - '.github/workflows/receive-contract.yml'
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  receive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tests/check_receive_data.py

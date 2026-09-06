@@ -223,7 +223,10 @@ HRESULT CSteamPlayClient::ReceiveData(LPDPID pFrom, LPDPID pTo, DWORD flags, LPV
 		sourceSize = it->pMsg->GetSize() - sizeof(Messages::Shared::SData);
 	}
 
-	if (!pData || *pSize < sourceSize)
+	// Receive reports the required size on a probe and the copied size on success.
+	DWORD const capacity = *pSize;
+	*pSize = static_cast<DWORD>(sourceSize);
+	if (!pData || capacity < sourceSize)
 	{
 		return DPERR_BUFFERTOOSMALL;
 	}
