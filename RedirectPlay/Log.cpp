@@ -2,9 +2,11 @@
 #include <chrono>
 #include <cstdarg>
 #include <fstream>
+#include <sstream>
 #include <mutex>
 
-constexpr char s_logFile[] = "RedirectPlay.log";
+#include "ucp3.h"
+
 
 Log::ELevel Log::s_setting = Log::ELevel::Info;
 
@@ -12,7 +14,7 @@ void Log::DoWrite(ELevel level, ESource source, char const* fmt, ...)
 {
 	static constexpr size_t s_bufferSize = 1024;
 	static char             s_szBuffer[s_bufferSize];
-	static std::ofstream    s_stream(s_logFile);
+	static std::stringstream    s_stream;
 	static std::mutex       s_mutex;
 
 	std::lock_guard<std::mutex> const lock(s_mutex);
@@ -30,24 +32,29 @@ void Log::DoWrite(ELevel level, ESource source, char const* fmt, ...)
 	}
 
 	// write level
+	ucp_NamedVerbosity logLevel = ucp_NamedVerbosity::Verbosity_0;
 
 	char const* szLevel;
 	switch (level)
 	{
 		case ELevel::Error:
 			szLevel = "E ";
+			logLevel = ucp_NamedVerbosity::Verbosity_ERROR;
 			break;
 		case ELevel::Warning:
 			szLevel = "W ";
+			logLevel = ucp_NamedVerbosity::Verbosity_WARNING;
 			break;
-#ifndef NDEBUG
+// #ifndef NDEBUG
 		case ELevel::Debug:
 			szLevel = "D ";
+			logLevel = ucp_NamedVerbosity::Verbosity_1;
 			break;
-#endif
+// #endif
 		case ELevel::Info:
 		default:
 			szLevel = "I ";
+			logLevel = ucp_NamedVerbosity::Verbosity_0;
 			break;
 	}
 	s_stream << szLevel;
@@ -78,7 +85,12 @@ void Log::DoWrite(ELevel level, ESource source, char const* fmt, ...)
 
 	// write input
 
-	s_stream << s_szBuffer << std::endl;
+	s_stream << s_szBuffer;
+
+	// ucp_log is thread safe
+	ucp_log(logLevel, s_stream.str().c_str());
+
+	s_stream.str(std::string());
 }
 
 

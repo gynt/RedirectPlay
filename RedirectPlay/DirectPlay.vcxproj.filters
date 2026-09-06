@@ -308,6 +308,7 @@
     <ClInclude Include="COM\IPtr.h">
       <Filter>Source\COM</Filter>
     </ClInclude>
+    <ClInclude Include="luaServerSettings.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -398,6 +399,10 @@
     </None>
     <None Include="..\External\Steam\redistributable_bin\steam_api.dll">
       <Filter>External\Steam\redistributable_bin</Filter>
+    </None>
+    <None Include="Directory.Build.props" />
+    <None Include="dplayx.def">
+      <Filter>Source</Filter>
     </None>
   </ItemGroup>
 </Project>

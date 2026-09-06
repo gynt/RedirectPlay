@@ -16,6 +16,7 @@
 #include "Steam/steamclientpublic.h"
 
 #include <cassert>
+#include <luaServerSettings.h>
 
 TClock::duration s_connectionTimeout = std::chrono::seconds(10);
 
@@ -50,6 +51,7 @@ void CSteamPlayProvider::Update()
 
 HRESULT CSteamPlayProvider::Join(const DPSESSIONDESC2& description)
 {
+	Log::Debug("CSteamPlayProvider::Join");
 	CSteamID const lobbyID = GUIDToSteamID(description.guidInstance);
 
 	fstring<DPPASSWORDLEN> password;
@@ -63,6 +65,7 @@ HRESULT CSteamPlayProvider::Join(const DPSESSIONDESC2& description)
 
 HRESULT CSteamPlayProvider::JoinLobby(CSteamID lobbyID, char const* szPassword)
 {
+	Log::Debug("CSteamPlayProvider::JoinLobby ID=%I64u password=%s", lobbyID.ConvertToUint64(), szPassword);
 	if (m_pLobby)
 	{
 		Log::Debug("Last lobby session was not closed properly!");
@@ -72,26 +75,104 @@ HRESULT CSteamPlayProvider::JoinLobby(CSteamID lobbyID, char const* szPassword)
 	m_pLobby = std::make_unique<CSteamLobby>();
 	if (!m_pLobby->Join(lobbyID))
 	{
+		Log::Debug("CSteamPlayProvider::JoinLobby CSteamLobby::Join() failed");
 		m_pLobby.reset();
 		return DPERR_GENERIC;
 	}
 
 	TClock::time_point const deadline = TClock::now() + s_connectionTimeout;
-	while (m_pLobby->GetState() == CSteamLobby::Joining ||
-		  !m_pLobby->GetGameServer().IsValid())
+	while (m_pLobby->GetState() == CSteamLobby::Joining)
 	{
 		SteamAPI_RunCallbacks();
 
 		if (TClock::now() > deadline)
 		{
+			Log::Debug("CSteamPlayProvider::JoinLobby join process deadline passed");
 			m_pLobby.reset();
 			return DPERR_TIMEOUT;
 		}
 	}
 
-	if (!m_pLobby->IsInLobby() ||
-		!m_pLobby->GetGameServer().IsValid())
+	if (!m_pLobby->IsInLobby()){
+		Log::Debug("CSteamPlayProvider::JoinLobby join process failed");
+		m_pLobby.reset();
+		return DPERR_GENERIC;
+	}
+
+	if (!m_pLobby->GetGameServer().IsValid()) {
+		// lazily create one if we are the lobby owner?
+
+		CSteamID owner = SteamMatchmaking()->GetLobbyOwner(m_pLobby->GetSteamID());
+		if (!owner.IsValid()) {
+			Log::Debug("CSteamPlayProvider::JoinLobby join process deadline passed: no server set");
+			m_pLobby.reset();
+			return DPERR_TIMEOUT;
+		}
+		
+		CSteamID user = SteamUser()->GetSteamID();
+		if (!user.IsValid() || (user.ConvertToUint64() != owner.ConvertToUint64())) {
+			Log::Debug("CSteamPlayProvider::JoinLobby join process deadline passed: no server set and user isn't owner");
+			m_pLobby.reset();
+			return DPERR_TIMEOUT;
+		}
+		
+		Log::Debug("CSteamPlayProvider::JoinLobby() lazily creating server because we own lobby");
+		
+		if (m_pServer) {
+			Log::Debug("Last server session was not closed properly!");
+			m_pServer.reset();
+		}
+		
+		m_pServer = std::make_unique<CSteamPlayServer>();
+
+		if (!m_pServer->Start(m_pLobby->m_settings))
+		{
+			m_pServer.reset();
+			Log::Debug("CSteamPlayProvider::JoinLobby() server failed to start");
+			return DPERR_GENERIC;
+		}
+
+		TClock::time_point const deadline = TClock::now() + s_connectionTimeout;
+		while (m_pServer->GetState() == CSteamPlayServer::Connecting)
+		{
+			SteamAPI_RunCallbacks();
+			SteamGameServer_RunCallbacks();
+
+			if (TClock::now() > deadline)
+			{
+				m_pServer.reset();
+				Log::Debug("CSteamPlayProvider::JoinLobby() server connection deadline passed");
+				return DPERR_TIMEOUT;
+			}
+		}
+
+		if (!m_pServer->IsConnected())
+		{
+			m_pServer.reset();
+			Log::Debug("CSteamPlayProvider::JoinLobby() server not connected");
+			return DPERR_GENERIC;
+		}
+
+		CSteamID const serverID = m_pServer->GetSteamID();
+		CSteamID const lobbyID = m_pLobby->GetSteamID();
+
+		HRESULT const clientResult = JoinServer(serverID, szPassword);
+		if (clientResult != DP_OK)
+		{
+			m_pServer.reset();
+			Log::Debug("CSteamPlayProvider::JoinLobby() failed to join server");
+			return clientResult;
+		}
+
+		m_pLobby->SetGameServer(serverID);
+
+		Log::Debug("CSteamPlayProvider::JoinLobby successfully created server and joined server and lobby");
+		return DP_OK;
+	}
+
+	if (!m_pLobby->GetGameServer().IsValid())
 	{
+		Log::Debug("CSteamPlayProvider::JoinLobby server invalid");
 		m_pLobby.reset();
 		return DPERR_GENERIC;
 	}
@@ -100,15 +181,18 @@ HRESULT CSteamPlayProvider::JoinLobby(CSteamID lobbyID, char const* szPassword)
 	HRESULT const clientResult = JoinServer(serverID, szPassword);
 	if (clientResult != DP_OK)
 	{
+		Log::Debug("CSteamPlayProvider::JoinLobby JoinServer() failed: %l", (long) clientResult);
 		m_pLobby.reset();
 		return clientResult;
 	}
 
+	Log::Debug("CSteamPlayProvider::JoinLobby success");
 	return DP_OK;
 }
 
 HRESULT CSteamPlayProvider::JoinServer(CSteamID serverID, char const* szPassword)
 {
+	Log::Debug("CSteamPlayProvider::JoinServer ID=%I64u password=%s", serverID.ConvertToUint64(), szPassword);
 	if (m_pClient)
 	{
 		Log::Debug("Last client session was not closed properly!");
@@ -118,6 +202,7 @@ HRESULT CSteamPlayProvider::JoinServer(CSteamID serverID, char const* szPassword
 	m_pClient = std::make_unique<CSteamPlayClient>();
 	if (!m_pClient->Join(serverID, szPassword))
 	{
+		Log::Debug("CSteamPlayProvider::JoinServer CSteamPlayClient::Join() failed");
 		return DPERR_GENERIC;
 	}
 
@@ -128,6 +213,7 @@ HRESULT CSteamPlayProvider::JoinServer(CSteamID serverID, char const* szPassword
 
 		if (TClock::now() > deadline)
 		{
+			Log::Debug("CSteamPlayProvider::JoinServer deadline passed");
 			m_pClient.reset();
 			return DPERR_TIMEOUT;
 		}
@@ -135,9 +221,12 @@ HRESULT CSteamPlayProvider::JoinServer(CSteamID serverID, char const* szPassword
 
 	if (!m_pClient->IsConnected())
 	{
+		Log::Debug("CSteamPlayProvider::JoinServer connection failed");
 		m_pClient.reset();
 		return DPERR_GENERIC;
 	}
+
+	Log::Debug("CSteamPlayProvider::JoinServer success");
 	return DP_OK;
 }
 
@@ -152,12 +241,13 @@ void DPDescToSettings(SSteamServerSettings& settings, DPSESSIONDESC2 const& desc
 	{
 		settings.password.clear();
 	}
-	settings.lobbyType  = k_ELobbyTypeFriendsOnly;
+	settings.lobbyType  = k_ELobbyTypePublic;
 	settings.maxPlayers = description.dwMaxPlayers;
 }
 
 HRESULT CSteamPlayProvider::Create(DPSESSIONDESC2& description)
 {
+	Log::Debug("CSteamPlayProvider::Create");
 	if (m_pServer || m_pLobby)
 	{
 		Log::Debug("Last server session was not closed properly!");
@@ -165,12 +255,13 @@ HRESULT CSteamPlayProvider::Create(DPSESSIONDESC2& description)
 		m_pLobby.reset();
 	}
 
-	SSteamServerSettings settings;
+	SSteamServerSettings settings = luaServerSettings;
+	// TODO: is this necessary?
 	DPDescToSettings(settings, description);
-	if (!ShowServerSettings(settings))
+	/*if (!ShowServerSettings(settings))
 	{
 		return DPERR_CANCELLED;
-	}
+	}*/
 
 	m_pServer = std::make_unique<CSteamPlayServer>();
 	m_pLobby = std::make_unique<CSteamLobby>();
@@ -224,6 +315,7 @@ HRESULT CSteamPlayProvider::Create(DPSESSIONDESC2& description)
 
 HRESULT CSteamPlayProvider::InitializeConnection(void* pConnection, DWORD)
 {
+	Log::Debug("CSteamPlayProvider::InitializeConnection");
 	if (!SteamUser()->BLoggedOn())
 	{
 		return DPERR_GENERIC;
@@ -262,6 +354,8 @@ HRESULT CSteamPlayProvider::InitializeConnection(void* pConnection, DWORD)
 
 HRESULT CSteamPlayProvider::Open(DPSESSIONDESC2* pDescription, DWORD flags)
 {
+	Log::Debug("CSteamPlayProvider::Open");
+
 	DPSESSION_NEWPLAYERSDISABLED;
 	DPSESSION_MIGRATEHOST;
 	DPSESSION_NOMESSAGEID;
@@ -302,6 +396,7 @@ HRESULT CSteamPlayProvider::Open(DPSESSIONDESC2* pDescription, DWORD flags)
 
 HRESULT CSteamPlayProvider::CreatePlayer(LPDPID pPlayerId, LPDPNAME pName, HANDLE event, LPVOID pData, DWORD size, DWORD flags)
 {
+	Log::Debug("CSteamPlayProvider::CreatePlayer");
 	if (!pPlayerId)
 	{
 		return DPERR_INVALIDPARAM;
@@ -376,8 +471,19 @@ void GetSessionName(SSteamLobbiesRequest::SLobby const& lobby, wchar_t* szBuffer
 	szBuffer[bufferSize - 1] = '\0';
 }
 
+void GuidToString(GUID const & guid, char output[32 + 1])
+{
+	unsigned char* guidBytes = (unsigned char*) & guid;
+	char* cursor = output;
+	for (int i = 0; i < 16; i++) {
+		cursor += snprintf(cursor, 3, "%02X", guidBytes[i]);
+	}
+	output[32] = 0;
+}
+
 HRESULT CSteamPlayProvider::EnumSessions(DPSESSIONDESC2* enumDesc, DWORD timeout, LPDPENUMSESSIONSCALLBACK2 callback, void* context, DWORD flags)
 {
+	Log::Debug("CSteamPlayProvider::EnumSessions");
 	DPENUMSESSIONS_AVAILABLE;
 	DPENUMSESSIONS_ALL;
 	DPENUMSESSIONS_ASYNC;
@@ -428,6 +534,8 @@ HRESULT CSteamPlayProvider::EnumSessions(DPSESSIONDESC2* enumDesc, DWORD timeout
 		desc.dwCurrentPlayers = lobby.currentPlayers;
 		desc.dwMaxPlayers = lobby.maxPlayers;
 		desc.guidInstance = SteamIDToGUID(lobby.id);
+		char guidString[33];
+		GuidToString(desc.guidInstance, guidString);
 		desc.dwFlags = 0;
 		if (lobby.password)
 		{
@@ -438,9 +546,11 @@ HRESULT CSteamPlayProvider::EnumSessions(DPSESSIONDESC2* enumDesc, DWORD timeout
 			desc.dwFlags |= DPSESSION_SECURESERVER;
 		}		
 
+		Log::InfoClient("EnumSessions: Executing callback for lobby ID=%I64u GUID=%s", lobby.id.ConvertToUint64(), guidString);
 		DPESC_TIMEDOUT;
 		if (!callback(&desc, nullptr, 0, context)) // todo, break on true or false?
 		{
+			Log::InfoClient("EnumSessions: 'break' received while executing callback for lobby: ID=%I64u GUID=%s", lobby.id.ConvertToUint64(), guidString);
 			break;
 		}
 	}
@@ -500,16 +610,19 @@ HRESULT CSteamPlayProvider::Send(DPID from, DPID to, DWORD flags, LPVOID data, D
 
 HRESULT CSteamPlayProvider::SetSessionDesc(LPDPSESSIONDESC2 description, DWORD flags)
 {
+	Log::Debug("CSteamPlayProvider::SetSessionDesc: stubbed!");
 	return DP_OK;
 }
 
 HRESULT CSteamPlayProvider::CancelMessage(DWORD msgid, DWORD flags)
 {
+	Log::Debug("CSteamPlayProvider::CancelMessage: stubbed!");
 	return DP_OK;
 }
 
 HRESULT CSteamPlayProvider::DestroyPlayer(DPID dpid)
 {
+	Log::Debug("CSteamPlayProvider::DestroyPlayer");
 	if (m_pClient && m_pClient->IsConnected())
 	{
 		return m_pClient->DestroyPlayer(dpid) ? DP_OK : DPERR_GENERIC;
@@ -519,6 +632,7 @@ HRESULT CSteamPlayProvider::DestroyPlayer(DPID dpid)
 
 HRESULT CSteamPlayProvider::Close(void)
 {
+	Log::Debug("CSteamPlayProvider::Close");
 	if (m_pClient)
 	{
 		m_pClient->Disconnect(EDisconnectReason::ClientDisconnect);

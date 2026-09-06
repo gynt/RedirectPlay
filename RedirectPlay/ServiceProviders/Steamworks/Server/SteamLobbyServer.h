@@ -6,7 +6,7 @@
 #include "DirectX/dplay.h"
 #include "Steam/isteammatchmaking.h"
 
-struct SSteamServerSettings;
+#include "SteamServerSettings.h"
 
 // Helper lobby to forward players to a session since local game servers
 // do not work properly when requesting server lists or joining via Steam UI.
@@ -38,6 +38,8 @@ public:
 	CSteamID GetGameServer() const;
 
 	void     UpdateLobbyDetails();
+
+	SSteamServerSettings m_settings;
 
 protected:
 	void OnLobbyCreated(LobbyCreated_t* pInfo, bool IOFailure);
